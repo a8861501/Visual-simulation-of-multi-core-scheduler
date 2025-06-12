@@ -1,0 +1,231 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+.section {
+    background: white;
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h2 {
+    color: #34495e;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 5px;
+}
+
+/* 核心配置樣式 */
+.core-config {
+    margin-bottom: 20px;
+}
+
+.core-config label {
+    display: inline-block;
+    width: 100px;
+    font-weight: bold;
+}
+
+.core-config select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.core-param {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.core-param label {
+    width: 150px;
+    font-weight: bold;
+}
+
+.core-param input {
+    margin: 0 10px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 80px;
+}
+
+/* 核心可視化樣式 */
+#core-visualization {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+.core-visual {
+    width: 100px;
+    height: 100px;
+    border: 3px solid #34495e;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.core-visual.running {
+    animation: pulse 1s infinite;
+    box-shadow: 0 0 20px rgba(52, 152, 219, 0.6);
+}
+
+.core-visual.idle {
+    background-color: #ecf0f1;
+}
+
+.core-visual .core-id {
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.core-visual .current-task {
+    font-size: 10px;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 任務配置樣式 */
+.task-config button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+.task-config button:hover {
+    background: #2980b9;
+}
+
+.task-item {
+    background: #f8f9fa;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+}
+
+.task-item input, .task-item select {
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.task-item label {
+    display: inline-block;
+    width: 120px;
+    font-weight: bold;
+}
+
+/* 策略選擇樣式 */
+.strategy-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.strategy-selection input[type="radio"] {
+    margin-right: 10px;
+}
+
+.strategy-selection label {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* 按鈕樣式 */
+#execute-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+#execute-btn:hover {
+    background: #229954;
+}
+
+#execute-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+}
+
+#reset-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#reset-btn:hover {
+    background: #c0392b;
+}
+
+/* 統計結果樣式 */
+#statistics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid #e67e22;
+}
+
+.stat-item h4 {
+    color: #d35400;
+    margin-bottom: 10px;
+}

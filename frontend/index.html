@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多核心排程器可視化</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>多核心排程器可視化系統</h1>
+        
+        <!-- 核心配置區域 -->
+        <div class="section">
+            <h2>核心配置</h2>
+            <div class="core-config">
+                <label for="core-count">核心數量:</label>
+                <select id="core-count" onchange="updateCoreConfig()">
+                    <option value="2">2核心</option>
+                    <option value="4" selected>4核心</option>
+                    <option value="6">6核心</option>
+                    <option value="8">8核心</option>
+                </select>
+            </div>
+            
+            <div id="core-parameters"></div>
+        </div>
+        
+        <!-- 核心可視化區域 -->
+        <div class="section">
+            <h2>核心狀態</h2>
+            <div id="core-visualization"></div>
+        </div>
+        
+        <!-- 任務配置區域 -->
+        <div class="section">
+            <h2>任務配置</h2>
+            <div class="task-config">
+                <button onclick="addTask()">新增任務</button>
+                <div id="task-list"></div>
+            </div>
+        </div>
+        
+        <!-- 排程策略選擇 -->
+        <div class="section">
+            <h2>排程策略</h2>
+            <div class="strategy-selection">
+                <input type="radio" id="edf" name="strategy" value="EDF" checked>
+                <label for="edf">EDF (Earliest Deadline First)</label>
+                
+                <input type="radio" id="heft" name="strategy" value="HEFT">
+                <label for="heft">HEFT (Heterogeneous Earliest Finish Time)</label>
+                
+                <input type="radio" id="eas" name="strategy" value="EAS">
+                <label for="eas">EAS (Energy Aware Scheduling)</label>
+            </div>
+        </div>
+        
+        <!-- 執行控制 -->
+        <div class="section">
+            <button id="execute-btn" onclick="executeScheduling()">執行排程</button>
+            <button id="reset-btn" onclick="resetSimulation()">重置</button>
+        </div>
+        
+        <!-- 統計結果 -->
+        <div class="section">
+            <h2>執行統計</h2>
+            <div id="statistics"></div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
