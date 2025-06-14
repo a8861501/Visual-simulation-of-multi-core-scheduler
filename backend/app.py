@@ -20,13 +20,171 @@ class Core:
         self.is_running = False
 
 class Task:
-    def __init__(self, task_id, name, execution_time, deadline=None, dependencies=None):
+    def __init__(self, task_id, name, task_type, arrival_time=0, deadline=None, 
+                 priority_class="NORMAL", thread_priority="NORMAL", 
+                 instruction_mix=None, cpu_burst=50, io_wait=0.2, 
+                 realtime=False, affinity_hint=None, dependencies=None):
         self.task_id = task_id
         self.name = name
-        self.execution_time = execution_time  # seconds
+        self.task_type = task_type
+        self.arrival_time = arrival_time
         self.deadline = deadline
+        self.priority_class = priority_class
+        self.thread_priority = thread_priority
+        self.instruction_mix = instruction_mix or {"scalar": 0.5, "vector": 0.2, "ai": 0.1, "io": 0.2}
+        self.cpu_burst = cpu_burst
+        self.io_wait = io_wait
+        self.realtime = realtime
+        self.affinity_hint = affinity_hint or []
         self.dependencies = dependencies or []
         self.completed = False
+        
+        # 計算執行時間基於 cpu_burst
+        self.execution_time = cpu_burst / 10  # 簡化計算，可根據需要調整
+
+# Task type configurations
+def get_task_config(task_type, name=None, arrival_time=0):
+    if name is None:
+        name = f"{task_type}_{random.randint(1000, 9999)}"
+
+    task_configs = {
+        "browser": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 30,
+            "priority_class": "NORMAL",
+            "thread_priority": "ABOVE_NORMAL",
+            "instruction_mix": {"scalar": 0.5, "vector": 0.1, "ai": 0.0, "io": 0.4},
+            "cpu_burst": 80,
+            "io_wait": 0.4,
+            "realtime": False,
+            "affinity_hint": []
+        },
+        "game": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 10,
+            "priority_class": "REALTIME",
+            "thread_priority": "TIME_CRITICAL",
+            "instruction_mix": {"scalar": 0.1, "vector": 0.5, "ai": 0.3, "io": 0.1},
+            "cpu_burst": 150,
+            "io_wait": 0.1,
+            "realtime": True,
+            "affinity_hint": ["big"]
+        },
+        "music": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 50,
+            "priority_class": "IDLE",
+            "thread_priority": "LOWEST",
+            "instruction_mix": {"scalar": 0.3, "vector": 0.0, "ai": 0.0, "io": 0.7},
+            "cpu_burst": 40,
+            "io_wait": 0.6,
+            "realtime": True,
+            "affinity_hint": ["little"]
+        },
+        "video_encode": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 60,
+            "priority_class": "HIGH",
+            "thread_priority": "HIGHEST",
+            "instruction_mix": {"scalar": 0.2, "vector": 0.6, "ai": 0.1, "io": 0.1},
+            "cpu_burst": 200,
+            "io_wait": 0.1,
+            "realtime": False,
+            "affinity_hint": ["big"]
+        },        "typing": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 40,
+            "priority_class": "NORMAL",
+            "thread_priority": "NORMAL",
+            "instruction_mix": {"scalar": 0.4, "vector": 0.0, "ai": 0.0, "io": 0.6},
+            "cpu_burst": 30,
+            "io_wait": 0.5,
+            "realtime": False,
+            "affinity_hint": ["little"]
+        },
+        "spotify": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 50,
+            "priority_class": "IDLE",
+            "thread_priority": "LOWEST",
+            "instruction_mix": {"scalar": 0.2, "vector": 0.0, "ai": 0.0, "io": 0.8},
+            "cpu_burst": 40,
+            "io_wait": 0.6,
+            "realtime": True,
+            "affinity_hint": ["little"]
+        },
+        "video_call": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 8,
+            "priority_class": "REALTIME",
+            "thread_priority": "HIGHEST",
+            "instruction_mix": {"scalar": 0.3, "vector": 0.2, "ai": 0.1, "io": 0.4},
+            "cpu_burst": 120,
+            "io_wait": 0.2,
+            "realtime": True,
+            "affinity_hint": ["big"]
+        },
+        "file_download": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 100,
+            "priority_class": "NORMAL",
+            "thread_priority": "BELOW_NORMAL",
+            "instruction_mix": {"scalar": 0.1, "vector": 0.0, "ai": 0.0, "io": 0.9},
+            "cpu_burst": 25,
+            "io_wait": 0.8,
+            "realtime": False,
+            "affinity_hint": ["little"]
+        },
+        "ai_processing": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 30,
+            "priority_class": "HIGH",
+            "thread_priority": "ABOVE_NORMAL",
+            "instruction_mix": {"scalar": 0.1, "vector": 0.2, "ai": 0.6, "io": 0.1},
+            "cpu_burst": 300,
+            "io_wait": 0.1,
+            "realtime": False,
+            "affinity_hint": ["big"]
+        },
+        "system_backup": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 300,
+            "priority_class": "IDLE",
+            "thread_priority": "LOWEST",
+            "instruction_mix": {"scalar": 0.2, "vector": 0.0, "ai": 0.0, "io": 0.8},
+            "cpu_burst": 50,
+            "io_wait": 0.7,
+            "realtime": False,
+            "affinity_hint": ["little"]
+        },
+        "photo_editing": {
+            "name": name,
+            "arrival_time": arrival_time,
+            "deadline": arrival_time + 45,
+            "priority_class": "NORMAL",
+            "thread_priority": "NORMAL",
+            "instruction_mix": {"scalar": 0.3, "vector": 0.4, "ai": 0.2, "io": 0.1},
+            "cpu_burst": 180,
+            "io_wait": 0.3,
+            "realtime": False,
+            "affinity_hint": ["big"]
+        }
+    }
+    
+    if task_type not in task_configs:
+        raise ValueError(f"Unsupported task type: {task_type}")
+    
+    return task_configs[task_type]
 
 class Scheduler:
     def __init__(self, cores, tasks):
@@ -175,15 +333,31 @@ def execute_scheduling():
             power_coefficient=core_config['power_coefficient']
         )
         cores.append(core)
-    
-    # Create tasks
+      # Create tasks
     tasks = []
     for i, task_data in enumerate(data['tasks']):
+        # Get task type configuration
+        task_type = task_data.get('task_type', 'browser')
+        arrival_time = task_data.get('arrival_time', 0)
+        custom_name = task_data.get('name')
+        
+        # Get configuration for this task type
+        task_config = get_task_config(task_type, custom_name, arrival_time)
+        
+        # Create task with all parameters
         task = Task(
             task_id=i,
-            name=task_data['name'],
-            execution_time=task_data['execution_time'],
-            deadline=task_data.get('deadline'),
+            name=task_config['name'],
+            task_type=task_type,
+            arrival_time=task_config['arrival_time'],
+            deadline=task_config['deadline'],
+            priority_class=task_config['priority_class'],
+            thread_priority=task_config['thread_priority'],
+            instruction_mix=task_config['instruction_mix'],
+            cpu_burst=task_config['cpu_burst'],
+            io_wait=task_config['io_wait'],
+            realtime=task_config['realtime'],
+            affinity_hint=task_config['affinity_hint'],
             dependencies=task_data.get('dependencies', [])
         )
         tasks.append(task)

@@ -3,6 +3,76 @@ let tasks = [];
 let socket;
 let taskCounter = 1;
 
+// Task type configurations
+const taskTypes = {
+    'browser': { 
+        name: '瀏覽器任務', 
+        icon: '🌐',
+        description: '網頁瀏覽、JavaScript執行',
+        color: '#3498db'
+    },
+    'game': { 
+        name: '遊戲任務', 
+        icon: '🎮',
+        description: '遊戲渲染、實時處理',
+        color: '#e74c3c'
+    },
+    'music': { 
+        name: '音樂播放', 
+        icon: '🎵',
+        description: '音頻解碼、播放',
+        color: '#2ecc71'
+    },
+    'video_encode': { 
+        name: '影片轉檔', 
+        icon: '🎬',
+        description: '影片處理、編碼',
+        color: '#f39c12'
+    },
+    'typing': { 
+        name: '文字輸入', 
+        icon: '⌨️',
+        description: '文字處理、輸入響應',
+        color: '#9b59b6'
+    },
+    'spotify': { 
+        name: 'Spotify 音樂', 
+        icon: '🎧',
+        description: '串流音樂播放',
+        color: '#1db954'
+    },
+    'video_call': { 
+        name: '視訊通話', 
+        icon: '📹',
+        description: '即時視訊通訊',
+        color: '#ff6b6b'
+    },
+    'file_download': { 
+        name: '檔案下載', 
+        icon: '📥',
+        description: '網路檔案下載',
+        color: '#4ecdc4'
+    },
+    'ai_processing': { 
+        name: 'AI 運算/機器學習', 
+        icon: '🧠',
+        description: 'AI 模型推理、機器學習',
+        color: '#a29bfe'
+    },
+    'system_backup': { 
+        name: '系統備份', 
+        icon: '💾',
+        description: '資料備份、同步',
+        color: '#6c5ce7'
+    },
+    'photo_editing': { 
+        name: '圖片編輯', 
+        icon: '🖼️',
+        description: '影像處理、修圖',
+        color: '#fd79a8'
+    }
+};
+
 // Core type configurations
 const coreTypes = {
     'high-performance': { color: '#e74c3c', frequency: 3.0, power: 15 },
@@ -112,21 +182,42 @@ function addTask() {
     const taskDiv = document.createElement('div');
     taskDiv.className = 'task-item';
     taskDiv.id = `task-${taskCounter}`;
+    
+    // Create task type selector
+    let taskTypeOptions = '';
+    for (const [key, config] of Object.entries(taskTypes)) {
+        taskTypeOptions += `<option value="${key}">${config.icon} ${config.name}</option>`;
+    }
+    
     taskDiv.innerHTML = `
         <h4>任務 ${taskCounter}</h4>
-        <label>任務名稱:</label>
-        <input type="text" id="task-name-${taskCounter}" value="Task ${taskCounter}">
+        <div class="task-config-row">
+            <label>任務類型:</label>
+            <select id="task-type-${taskCounter}" onchange="updateTaskPreview(${taskCounter})">
+                ${taskTypeOptions}
+            </select>
+        </div>
         
-        <label>執行時間 (秒):</label>
-        <input type="number" id="task-time-${taskCounter}" value="5" min="1" max="100">
+        <div class="task-config-row">
+            <label>自訂名稱 (可選):</label>
+            <input type="text" id="task-name-${taskCounter}" placeholder="留空使用預設名稱">
+        </div>
         
-        <label>截止時間 (秒):</label>
-        <input type="number" id="task-deadline-${taskCounter}" value="10" min="1" max="200">
+        <div class="task-config-row">
+            <label>到達時間 (秒):</label>
+            <input type="number" id="task-arrival-${taskCounter}" value="0" min="0" max="100">
+        </div>
         
-        <button onclick="removeTask(${taskCounter})" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; margin-left: 10px; border-radius: 3px; cursor: pointer;">刪除</button>
+        <div class="task-preview" id="task-preview-${taskCounter}">
+            <h5>任務預覽:</h5>
+            <div class="preview-content"></div>
+        </div>
+        
+        <button onclick="removeTask(${taskCounter})" class="remove-btn">刪除任務</button>
     `;
     
     taskList.appendChild(taskDiv);
+    updateTaskPreview(taskCounter);
     taskCounter++;
 }
 
@@ -159,20 +250,19 @@ function executeScheduling() {
             power_coefficient: parseFloat(document.getElementById(`power-${i}`).value)
         });
     }
-    
-    // Collect task configurations
+      // Collect task configurations
     const taskConfigs = [];
     const taskElements = document.querySelectorAll('.task-item');
     taskElements.forEach((element, index) => {
         const taskId = element.id.split('-')[1];
-        const name = document.getElementById(`task-name-${taskId}`).value;
-        const executionTime = parseInt(document.getElementById(`task-time-${taskId}`).value);
-        const deadline = parseInt(document.getElementById(`task-deadline-${taskId}`).value);
+        const taskType = document.getElementById(`task-type-${taskId}`).value;
+        const customName = document.getElementById(`task-name-${taskId}`).value.trim();
+        const arrivalTime = parseInt(document.getElementById(`task-arrival-${taskId}`).value) || 0;
         
         taskConfigs.push({
-            name: name,
-            execution_time: executionTime,
-            deadline: deadline,
+            task_type: taskType,
+            name: customName || null, // null means use default name
+            arrival_time: arrivalTime,
             dependencies: []
         });
     });
@@ -240,4 +330,121 @@ function resetSimulation() {
     // Enable execute button
     document.getElementById('execute-btn').disabled = false;
     document.getElementById('execute-btn').textContent = '執行排程';
+}
+
+function updateTaskPreview(taskId) {
+    const taskType = document.getElementById(`task-type-${taskId}`).value;
+    const previewDiv = document.getElementById(`task-preview-${taskId}`);
+    const previewContent = previewDiv.querySelector('.preview-content');
+    
+    const taskConfig = taskTypes[taskType];
+      // Task type specific configurations (matching backend configurations)
+    const taskParams = {
+        'browser': {
+            cpu_burst: 80,
+            deadline_offset: 30,
+            priority_class: 'NORMAL',
+            thread_priority: 'ABOVE_NORMAL',
+            realtime: false
+        },
+        'game': {
+            cpu_burst: 150,
+            deadline_offset: 10,
+            priority_class: 'REALTIME',
+            thread_priority: 'TIME_CRITICAL',
+            realtime: true
+        },
+        'music': {
+            cpu_burst: 40,
+            deadline_offset: 50,
+            priority_class: 'IDLE',
+            thread_priority: 'LOWEST',
+            realtime: true
+        },
+        'video_encode': {
+            cpu_burst: 200,
+            deadline_offset: 60,
+            priority_class: 'HIGH',
+            thread_priority: 'HIGHEST',
+            realtime: false
+        },
+        'typing': {
+            cpu_burst: 30,
+            deadline_offset: 40,
+            priority_class: 'NORMAL',
+            thread_priority: 'NORMAL',
+            realtime: false
+        },
+        'spotify': {
+            cpu_burst: 40,
+            deadline_offset: 50,
+            priority_class: 'IDLE',
+            thread_priority: 'LOWEST',
+            realtime: true
+        },
+        'video_call': {
+            cpu_burst: 120,
+            deadline_offset: 8,
+            priority_class: 'REALTIME',
+            thread_priority: 'HIGHEST',
+            realtime: true
+        },
+        'file_download': {
+            cpu_burst: 25,
+            deadline_offset: 100,
+            priority_class: 'NORMAL',
+            thread_priority: 'BELOW_NORMAL',
+            realtime: false
+        },
+        'ai_processing': {
+            cpu_burst: 300,
+            deadline_offset: 30,
+            priority_class: 'HIGH',
+            thread_priority: 'ABOVE_NORMAL',
+            realtime: false
+        },
+        'system_backup': {
+            cpu_burst: 50,
+            deadline_offset: 300,
+            priority_class: 'IDLE',
+            thread_priority: 'LOWEST',
+            realtime: false
+        },
+        'photo_editing': {
+            cpu_burst: 180,
+            deadline_offset: 45,
+            priority_class: 'NORMAL',
+            thread_priority: 'NORMAL',
+            realtime: false
+        }
+    };
+    
+    const params = taskParams[taskType];
+    const arrivalTime = parseInt(document.getElementById(`task-arrival-${taskId}`).value) || 0;
+    
+    previewContent.innerHTML = `
+        <div class="preview-item">
+            <span class="preview-label">描述:</span>
+            <span class="preview-value">${taskConfig.description}</span>
+        </div>
+        <div class="preview-item">
+            <span class="preview-label">CPU突發:</span>
+            <span class="preview-value">${params.cpu_burst}</span>
+        </div>
+        <div class="preview-item">
+            <span class="preview-label">截止時間:</span>
+            <span class="preview-value">${arrivalTime + params.deadline_offset} 秒</span>
+        </div>
+        <div class="preview-item">
+            <span class="preview-label">優先級:</span>
+            <span class="preview-value">${params.priority_class}</span>
+        </div>
+        <div class="preview-item">
+            <span class="preview-label">實時任務:</span>
+            <span class="preview-value">${params.realtime ? '是' : '否'}</span>
+        </div>
+    `;
+    
+    // Update preview background color
+    previewDiv.style.borderLeft = `4px solid ${taskConfig.color}`;
 }
