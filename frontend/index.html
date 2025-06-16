@@ -25,11 +25,12 @@
             </div>
             
             <div id="core-parameters"></div>
-        </div>
-        
-        <!-- 核心可視化區域 -->
+        </div>        <!-- 核心可視化區域 -->
         <div class="section">
-            <h2>核心狀態</h2>
+            <h2>核心狀態與任務佇列</h2>
+            <div class="simulation-info">
+                <span id="current-time">模擬時間: 0.0s</span>
+            </div>
             <div id="core-visualization"></div>
         </div>
         
@@ -41,19 +42,35 @@
                 <div id="task-list"></div>
             </div>
         </div>
-        
-        <!-- 排程策略選擇 -->
+          <!-- 排程策略選擇 -->
         <div class="section">
-            <h2>排程策略</h2>
-            <div class="strategy-selection">
-                <input type="radio" id="edf" name="strategy" value="EDF" checked>
-                <label for="edf">EDF (Earliest Deadline First)</label>
+            <h2>排程設定</h2>
+            <div class="scheduling-config">
+                <div class="config-row">
+                    <h3>排程策略</h3>
+                    <div class="strategy-selection">
+                        <input type="radio" id="basic" name="strategy" value="BASIC" checked>
+                        <label for="basic">Basic Idle-First Scheduler</label>
+                        
+                        <input type="radio" id="edf" name="strategy" value="EDF">
+                        <label for="edf">EDF (Earliest Deadline First)</label>
+                        
+                        <input type="radio" id="heft" name="strategy" value="HEFT">
+                        <label for="heft">HEFT (Heterogeneous Earliest Finish Time)</label>
+                        
+                        <input type="radio" id="eas" name="strategy" value="EAS">
+                        <label for="eas">EAS (Energy Aware Scheduling)</label>
+                    </div>
+                </div>
                 
-                <input type="radio" id="heft" name="strategy" value="HEFT">
-                <label for="heft">HEFT (Heterogeneous Earliest Finish Time)</label>
-                
-                <input type="radio" id="eas" name="strategy" value="EAS">
-                <label for="eas">EAS (Energy Aware Scheduling)</label>
+                <div class="config-row">
+                    <h3>模擬設定</h3>
+                    <div class="simulation-config">
+                        <label for="max-sim-time">最大模擬時間 (秒):</label>
+                        <input type="number" id="max-sim-time" value="60" min="10" max="300" step="10">
+                        <span class="config-help">模擬將在此時間後自動停止</span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -62,11 +79,12 @@
             <button id="execute-btn" onclick="executeScheduling()">執行排程</button>
             <button id="reset-btn" onclick="resetSimulation()">重置</button>
         </div>
-        
-        <!-- 統計結果 -->
+          <!-- 統計結果 -->
         <div class="section">
             <h2>執行統計</h2>
-            <div id="statistics"></div>
+            <div id="statistics">
+                <div class="stats-placeholder">執行排程後將顯示統計資料</div>
+            </div>
         </div>
     </div>
     

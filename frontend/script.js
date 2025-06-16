@@ -75,9 +75,24 @@ const taskTypes = {
 
 // Core type configurations
 const coreTypes = {
-    'high-performance': { color: '#e74c3c', frequency: 3.0, power: 15 },
-    'balanced': { color: '#3498db', frequency: 2.5, power: 10 },
-    'efficiency': { color: '#2ecc71', frequency: 2.0, power: 5 }
+    'P': { 
+        name: 'P-Core (效能核心)', 
+        color: '#e74c3c', 
+        max_freq: 3.5, 
+        min_freq: 1.2,
+        base_power: 1.5,
+        thermal_threshold: 85.0,
+        description: '高效能核心，適合計算密集任務'
+    },
+    'E': { 
+        name: 'E-Core (節能核心)', 
+        color: '#2ecc71', 
+        max_freq: 2.0, 
+        min_freq: 0.8,
+        base_power: 0.6,
+        thermal_threshold: 75.0,
+        description: '節能核心，適合背景任務'
+    }
 };
 
 // Initialize the application
@@ -93,11 +108,26 @@ function initializeSocket() {
     socket.on('core_update', function(data) {
         updateCoreVisual(data.core_id, data.status, data.task);
     });
+      socket.on('core_states_update', function(data) {
+        updateCoreStates(data.cores, data.time);
+        updateSimulationTime(data.time, data.remaining_time);
+    });
     
-    socket.on('simulation_complete', function(data) {
-        displayStatistics(data.statistics);
+    socket.on('task_assigned', function(data) {
+        moveTaskToCore(data.task_id, data.core_id, data.task);
+    });
+    
+    socket.on('task_completed', function(data) {
+        removeCompletedTask(data.task_id, data.task_name);
+    });
+      socket.on('simulation_complete', function(data) {
+        displayEnhancedStatistics(data.statistics, data.timeout);
         document.getElementById('execute-btn').disabled = false;
         document.getElementById('execute-btn').textContent = '執行排程';
+        
+        if (data.timeout) {
+            showTimeoutMessage(data.total_time);
+        }
     });
 }
 
@@ -119,14 +149,12 @@ function updateCoreConfig() {
         paramDiv.innerHTML = `
             <label>核心 ${i + 1}:</label>
             <select onchange="updateCoreType(${i})" id="core-type-${i}">
-                <option value="high-performance">高效能核心</option>
-                <option value="balanced" selected>平衡核心</option>
-                <option value="efficiency">節能核心</option>
+                <option value="P" selected>P-Core (效能核心)</option>
+                <option value="E">E-Core (節能核心)</option>
             </select>
-            <label>頻率 (GHz):</label>
-            <input type="number" id="frequency-${i}" value="2.5" step="0.1" min="1.0" max="5.0">
-            <label>功耗係數:</label>
-            <input type="number" id="power-${i}" value="10" step="1" min="1" max="50">
+            <div class="core-details" id="core-details-${i}">
+                <span class="core-spec">頻率: 1.2-3.5 GHz | 功耗: 1.5W | 溫度閾值: 85°C</span>
+            </div>
         `;
         paramContainer.appendChild(paramDiv);
         
@@ -134,45 +162,55 @@ function updateCoreConfig() {
         const coreDiv = document.createElement('div');
         coreDiv.className = 'core-visual idle';
         coreDiv.id = `core-${i}`;
-        coreDiv.style.backgroundColor = coreTypes['balanced'].color;
-        coreDiv.innerHTML = `
-            <div class="core-id">核心 ${i + 1}</div>
+        coreDiv.style.backgroundColor = coreTypes['P'].color;        coreDiv.innerHTML = `
+            <div class="core-id">P-Core ${i + 1}</div>
+            <div class="core-stats">
+                <div class="stat">Load: <span id="load-${i}">0%</span></div>
+                <div class="stat">Temp: <span id="temp-${i}">25°C</span></div>
+                <div class="stat">Freq: <span id="freq-${i}">3.5GHz</span></div>
+                <div class="stat">Power: <span id="power-${i}">1.5W</span></div>
+            </div>
             <div class="current-task"></div>
+            <div class="task-queue" id="task-queue-${i}">
+                <div class="queue-header">任務佇列:</div>
+            </div>
         `;
         visualContainer.appendChild(coreDiv);
         
         // Initialize core data
         cores.push({
             id: i,
-            type: 'balanced',
-            frequency: 2.5,
-            power_coefficient: 10
+            core_type: 'P'
         });
     }
 }
 
 function updateCoreType(coreIndex) {
     const typeSelect = document.getElementById(`core-type-${coreIndex}`);
-    const frequencyInput = document.getElementById(`frequency-${coreIndex}`);
-    const powerInput = document.getElementById(`power-${coreIndex}`);
     const coreVisual = document.getElementById(`core-${coreIndex}`);
+    const coreDetails = document.getElementById(`core-details-${coreIndex}`);
     
     const selectedType = typeSelect.value;
     const typeConfig = coreTypes[selectedType];
     
-    // Update input values
-    frequencyInput.value = typeConfig.frequency;
-    powerInput.value = typeConfig.power;
-    
-    // Update visual color
+    // Update visual
     coreVisual.style.backgroundColor = typeConfig.color;
+    coreVisual.querySelector('.core-id').textContent = `${selectedType}-Core ${coreIndex + 1}`;
+    
+    // Update details display
+    coreDetails.querySelector('.core-spec').textContent = 
+        `頻率: ${typeConfig.min_freq}-${typeConfig.max_freq} GHz | 功耗: ${typeConfig.base_power}W | 溫度閾值: ${typeConfig.thermal_threshold}°C`;
+    
+    // Update frequency display
+    const freqSpan = document.getElementById(`freq-${coreIndex}`);
+    if (freqSpan) {
+        freqSpan.textContent = `${typeConfig.max_freq}GHz`;
+    }
     
     // Update core data
     cores[coreIndex] = {
         id: coreIndex,
-        type: selectedType,
-        frequency: typeConfig.frequency,
-        power_coefficient: typeConfig.power
+        core_type: selectedType
     };
 }
 
@@ -213,7 +251,7 @@ function addTask() {
             <div class="preview-content"></div>
         </div>
         
-        <button onclick="removeTask(${taskCounter})" class="remove-btn">刪除任務</button>
+        <button onclick="removeTask(${taskCounter})" class="remove-btn">刪除 任務</button>
     `;
     
     taskList.appendChild(taskDiv);
@@ -241,13 +279,12 @@ function updateCoreVisual(coreId, status, taskName = null) {
     }
 }
 
-function executeScheduling() {
-    // Collect core configurations
+function executeScheduling() {    // Collect core configurations
     const coreConfigs = [];
     for (let i = 0; i < cores.length; i++) {
+        const coreType = document.getElementById(`core-type-${i}`).value;
         coreConfigs.push({
-            frequency: parseFloat(document.getElementById(`frequency-${i}`).value),
-            power_coefficient: parseFloat(document.getElementById(`power-${i}`).value)
+            core_type: coreType
         });
     }
       // Collect task configurations
@@ -265,20 +302,28 @@ function executeScheduling() {
             arrival_time: arrivalTime,
             dependencies: []
         });
-    });
-    
-    // Get selected strategy
+    });    // Get selected strategy
     const strategy = document.querySelector('input[name="strategy"]:checked').value;
     
+    // Get max simulation time
+    const maxSimTime = parseInt(document.getElementById('max-sim-time').value) || 60;
+    
     // Clear previous statistics
-    document.getElementById('statistics').innerHTML = '';
+    document.getElementById('statistics').innerHTML = '<div class="stats-loading">正在執行排程...</div>';
+    
+    // Clear task queues
+    document.querySelectorAll('.task-queue').forEach(queue => {
+        queue.innerHTML = '<div class="queue-header">任務佇列:</div>';
+    });
     
     // Disable execute button
     document.getElementById('execute-btn').disabled = true;
     document.getElementById('execute-btn').textContent = '執行中...';
     
-    // Send request to backend
-    fetch('http://localhost:5000/api/execute', {
+    // Choose API endpoint based on strategy
+    const endpoint = strategy === 'BASIC' ? '/api/execute_realtime' : '/api/execute';
+      // Send request to backend
+    fetch(`http://localhost:5000${endpoint}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -286,7 +331,8 @@ function executeScheduling() {
         body: JSON.stringify({
             cores: coreConfigs,
             tasks: taskConfigs,
-            strategy: strategy
+            strategy: strategy,
+            max_simulation_time: maxSimTime
         })
     })
     .then(response => response.json())
@@ -447,4 +493,197 @@ function updateTaskPreview(taskId) {
     
     // Update preview background color
     previewDiv.style.borderLeft = `4px solid ${taskConfig.color}`;
+}
+
+function updateCoreStates(cores, currentTime) {
+    cores.forEach(core => {
+        const coreElement = document.getElementById(`core-${core.core_id}`);
+        if (coreElement) {
+            // Update statistics
+            document.getElementById(`load-${core.core_id}`).textContent = `${core.load}%`;
+            document.getElementById(`temp-${core.core_id}`).textContent = `${core.temp}°C`;
+            document.getElementById(`freq-${core.core_id}`).textContent = `${core.freq}GHz`;
+            document.getElementById(`power-${core.core_id}`).textContent = `${core.power}W`;
+            
+            // Update visual state
+            const taskElement = coreElement.querySelector('.current-task');
+            if (core.active && core.current_task) {
+                coreElement.className = 'core-visual running';
+                taskElement.textContent = `執行中: ${core.current_task}`;
+                
+                // Add thermal throttling indicator
+                if (core.thermal_throttling) {
+                    coreElement.classList.add('thermal-throttling');
+                }
+            } else {
+                coreElement.className = 'core-visual idle';
+                taskElement.textContent = '閒置';
+                coreElement.classList.remove('thermal-throttling');
+            }
+        }
+    });
+    
+    // Update time display
+    const timeDisplay = document.getElementById('current-time');
+    if (timeDisplay) {
+        timeDisplay.textContent = `模擬時間: ${currentTime.toFixed(1)}s`;
+    }
+}
+
+function moveTaskToCore(taskId, coreId, taskName) {
+    const taskQueue = document.getElementById(`task-queue-${coreId}`);
+    if (taskQueue) {
+        const taskElement = document.createElement('div');
+        taskElement.className = 'queued-task';
+        taskElement.id = `queued-task-${taskId}`;
+        taskElement.innerHTML = `
+            <span class="task-name">${taskName}</span>
+            <span class="task-status">執行中</span>
+        `;
+        taskQueue.appendChild(taskElement);
+    }
+}
+
+function removeCompletedTask(taskId, taskName) {
+    const taskElement = document.getElementById(`queued-task-${taskId}`);
+    if (taskElement) {
+        taskElement.classList.add('completed');
+        setTimeout(() => {
+            taskElement.remove();
+        }, 1000); // 1秒後移除
+    }
+}
+
+function updateSimulationTime(currentTime, remainingTime) {
+    const timeDisplay = document.getElementById('current-time');
+    if (timeDisplay) {
+        timeDisplay.innerHTML = `
+            <span class="current-time">模擬時間: ${currentTime.toFixed(1)}s</span>
+            <span class="remaining-time">剩餘時間: ${remainingTime.toFixed(1)}s</span>
+        `;
+        
+        // 添加時間警告
+        if (remainingTime < 10) {
+            timeDisplay.classList.add('time-warning');
+        } else {
+            timeDisplay.classList.remove('time-warning');
+        }
+    }
+}
+
+function showTimeoutMessage(totalTime) {
+    const message = document.createElement('div');
+    message.className = 'timeout-message';
+    message.innerHTML = `
+        <h3>⏰ 模擬時間到達上限</h3>
+        <p>模擬在 ${totalTime.toFixed(1)} 秒後自動停止</p>
+        <p>所有正在執行的任務已被中斷</p>
+    `;
+    
+    const container = document.querySelector('.container');
+    container.insertBefore(message, container.firstChild);
+    
+    // 5秒後自動移除訊息
+    setTimeout(() => {
+        message.remove();
+    }, 5000);
+}
+
+function displayEnhancedStatistics(statistics, timeout) {
+    const statsContainer = document.getElementById('statistics');
+    statsContainer.innerHTML = '';
+    
+    if (!statistics) return;
+    
+    // 創建統計標籤頁
+    const tabsContainer = document.createElement('div');
+    tabsContainer.className = 'stats-tabs';
+    tabsContainer.innerHTML = `
+        <button class="tab-button active" onclick="showStatsTab('global')">全域統計</button>
+        <button class="tab-button" onclick="showStatsTab('cores')">核心統計</button>
+    `;
+    statsContainer.appendChild(tabsContainer);
+    
+    // 全域統計
+    const globalStatsDiv = document.createElement('div');
+    globalStatsDiv.className = 'stats-content active';
+    globalStatsDiv.id = 'global-stats';
+    
+    const global = statistics.global;
+    globalStatsDiv.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card ${timeout ? 'timeout' : 'success'}">
+                <h4>模擬結果</h4>
+                <p><strong>執行時間:</strong> ${global.simulation_time}s</p>
+                <p><strong>狀態:</strong> ${timeout ? '時間到達上限' : '正常完成'}</p>
+                <p><strong>任務完成率:</strong> ${global.completion_rate}%</p>
+            </div>
+            
+            <div class="stat-card">
+                <h4>任務統計</h4>
+                <p><strong>總任務數:</strong> ${global.total_tasks}</p>
+                <p><strong>已分配:</strong> ${global.tasks_assigned}</p>
+                <p><strong>已完成:</strong> ${global.tasks_completed}</p>
+            </div>
+            
+            <div class="stat-card">
+                <h4>系統效能</h4>
+                <p><strong>平均溫度:</strong> ${global.avg_system_temperature}°C</p>
+                <p><strong>總功耗:</strong> ${global.total_system_power.toFixed(2)}W·s</p>
+                <p><strong>限速事件:</strong> ${global.thermal_throttling_events}</p>
+            </div>
+        </div>
+    `;
+    statsContainer.appendChild(globalStatsDiv);
+    
+    // 核心統計
+    const coreStatsDiv = document.createElement('div');
+    coreStatsDiv.className = 'stats-content';
+    coreStatsDiv.id = 'core-stats';
+    
+    let coreStatsHTML = '<div class="core-stats-grid">';
+    statistics.cores.forEach(core => {
+        coreStatsHTML += `
+            <div class="core-stat-card">
+                <h4>${core.core_type}-Core ${core.core_id + 1}</h4>
+                <div class="stat-row">
+                    <span>利用率:</span>
+                    <span class="stat-value">${core.utilization_percentage}%</span>
+                </div>
+                <div class="stat-row">
+                    <span>活躍時間:</span>
+                    <span class="stat-value">${core.active_time}s</span>
+                </div>
+                <div class="stat-row">
+                    <span>閒置時間:</span>
+                    <span class="stat-value">${core.idle_time}s</span>
+                </div>
+                <div class="stat-row">
+                    <span>最終溫度:</span>
+                    <span class="stat-value">${core.final_temperature}°C</span>
+                </div>
+                <div class="stat-row">
+                    <span>平均頻率:</span>
+                    <span class="stat-value">${core.avg_frequency}GHz</span>
+                </div>
+                <div class="stat-row">
+                    <span>執行任務數:</span>
+                    <span class="stat-value">${core.tasks_executed}</span>
+                </div>
+            </div>
+        `;
+    });
+    coreStatsHTML += '</div>';
+    coreStatsDiv.innerHTML = coreStatsHTML;
+    statsContainer.appendChild(coreStatsDiv);
+}
+
+function showStatsTab(tabName) {
+    // 移除所有active類別
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stats-content').forEach(content => content.classList.remove('active'));
+    
+    // 添加active到選中的標籤
+    event.target.classList.add('active');
+    document.getElementById(`${tabName}-stats`).classList.add('active');
 }
